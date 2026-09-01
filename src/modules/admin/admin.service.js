@@ -365,7 +365,7 @@ const parsePacks = (raw) => {
     .sort((a, b) => a.grams - b.grams);
 };
 
-const createShopProduct = async (body, files, adminId) => {
+const createShopProduct = async (body, file, adminId) => {
   const name = body.name;
   const slug = name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now();
 
@@ -392,15 +392,13 @@ const createShopProduct = async (body, files, adminId) => {
     is_draft: false
   });
 
-  if (files && files.length > 0) {
-    await Promise.all(files.map((file, index) =>
-      ProductImage.create({
-        product_id: product.id,
-        image_url: `/uploads/${file.filename}`,
-        is_primary: index === 0,
-        sort_order: index
-      })
-    ));
+  if (file) {
+    await ProductImage.create({
+      product_id: product.id,
+      image_url: `/uploads/${file.filename}`,
+      is_primary: true,
+      sort_order: 0
+    });
   }
 
   return product.reload({
@@ -411,7 +409,7 @@ const createShopProduct = async (body, files, adminId) => {
   });
 };
 
-const updateShopProduct = async (productId, body, files, adminId) => {
+const updateShopProduct = async (productId, body, file, adminId) => {
   const product = await Product.findOne({ where: { uuid: productId } });
   if (!product) throw new AppError('Product not found', 404, 'NOT_FOUND');
 
@@ -433,15 +431,18 @@ const updateShopProduct = async (productId, body, files, adminId) => {
 
   await product.update(allowedUpdates);
 
-  if (files && files.length > 0) {
-    await Promise.all(files.map((file, index) =>
-      ProductImage.create({
-        product_id: product.id,
-        image_url: `/uploads/${file.filename}`,
-        is_primary: false,
-        sort_order: index
-      })
-    ));
+  if (file) {
+    // Replace the existing image rather than appending, so there is always
+    // exactly one image and it's the one just uploaded — everywhere the
+    // product is shown (admin table, admin view modal, storefront, cart,
+    // product detail) reads from the same `images` association.
+    await ProductImage.destroy({ where: { product_id: product.id } });
+    await ProductImage.create({
+      product_id: product.id,
+      image_url: `/uploads/${file.filename}`,
+      is_primary: true,
+      sort_order: 0
+    });
   }
 
   return product.reload({

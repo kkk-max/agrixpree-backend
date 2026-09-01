@@ -29,8 +29,16 @@ const sendPushToUser = async ({ userId, title, message, data, url }) => {
         url
       })
     });
+    const body = await res.json().catch(() => null);
     if (!res.ok) {
-      logger.error(`OneSignal push failed (${res.status}) for user ${userId}: ${await res.text()}`);
+      logger.error(`OneSignal push failed (${res.status}) for user ${userId}: ${JSON.stringify(body)}`);
+    } else if (!body?.recipients) {
+      // 200 OK doesn't mean delivered — OneSignal returns recipients:0 when no
+      // subscribed device matches this external_id (permission never granted,
+      // or the browser subscribed under a different app/site than this App ID).
+      logger.warn(`OneSignal accepted push for user ${userId} but recipients:0 (no subscribed device for this external_id): ${JSON.stringify(body)}`);
+    } else {
+      logger.info(`OneSignal push sent to user ${userId}, recipients: ${body.recipients}`);
     }
   } catch (err) {
     logger.error(`OneSignal push error for user ${userId}: ${err.message}`);
