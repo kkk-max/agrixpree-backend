@@ -1,7 +1,10 @@
 const logger = require('./logger');
 
-// Sends a OneSignal web push to one specific user, targeted by external_id
-// (the numeric User.id, set client-side via OneSignal.login() on auth).
+// Sends a OneSignal web push to one specific user, targeted by external_id.
+// Callers must pass the user's public UUID (User.uuid) here — that's what the
+// frontend sets client-side via OneSignal.login(user.id) on auth (user.id in
+// API responses IS the uuid, not the numeric PK). Passing the numeric id
+// silently matches 0 devices.
 const sendPushToUser = async ({ userId, title, message, data, url }) => {
   const appId = process.env.ONESIGNAL_APP_ID;
   const apiKey = process.env.ONESIGNAL_REST_API_KEY;
